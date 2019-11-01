@@ -34,31 +34,11 @@ load_cache: &load_cache
 
 save_cache: &save_cache
   - save_cache:
-      key: sbt-cache
+      key: sbt-http-cache
       paths:
           - "~/.ivy2/cache"
           - "~/.sbt"
           - "~/.m2"
-
-install_yarn: &install_yarn
-  - run:
-      name: Install Yarn
-      command: |
-        curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
-        sudo bash -c 'echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list'
-        sudo apt update && sudo apt install yarn -y
-        yarn policies set-version
-        yarn -v
-
-install_nodejs: &install_nodejs
-  - run:
-      name: Install node.js
-      command: |
-        export NVM_DIR="/opt/circleci/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        nvm install
-        nvm use
-        node -v
 
 lint: &lint
   steps:
@@ -118,85 +98,43 @@ jobs:
       - <<: *scala_212
       - <<: *jdk_8
 
-  test_211_jdk8_jvm:
-    <<: *testJVM
+  test_211_jdk8:
+    <<: *test
     <<: *machine_ubuntu
     environment:
       - <<: *scala_211
       - <<: *jdk_8
 
-  test_212_jdk8_jvm:
-    <<: *testJVM
+  test_212_jdk8:
+    <<: *test
     <<: *machine_ubuntu
     environment:
       - <<: *scala_212
       - <<: *jdk_8
 
-  test_213_jdk8_jvm:
-    <<: *testJVM
+  test_213_jdk8:
+    <<: *test
     <<: *machine_ubuntu
     environment:
       - <<: *scala_213
       - <<: *jdk_8
 
-  test_211_jdk11_jvm:
-    <<: *testJVM
+  test_211_jdk11:
+    <<: *test
     <<: *machine_ubuntu
     environment:
       - <<: *scala_211
       - <<: *jdk_11
 
-  test_212_jdk11_jvm:
-    <<: *testJVM
+  test_212_jdk11:
+    <<: *test
     <<: *machine_ubuntu
     environment:
       - <<: *scala_212
       - <<: *jdk_11
 
-  test_213_jdk11_jvm:
-    <<: *testJVM
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_213
-      - <<: *jdk_11
-
-  test_211_jdk8_js:
-    <<: *testJS
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_211
-      - <<: *jdk_8
-
-  test_212_jdk8_js:
-    <<: *testJS
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_212
-      - <<: *jdk_8
-
-  test_213_jdk8_js:
-    <<: *testJS
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_213
-      - <<: *jdk_8
-
-  test_211_jdk11_js:
-    <<: *testJS
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_211
-      - <<: *jdk_11
-
-  test_212_jdk11_js:
-    <<: *testJS
-    <<: *machine_ubuntu
-    environment:
-      - <<: *scala_212
-      - <<: *jdk_11
-
-  test_213_jdk11_js:
-    <<: *testJS
+  test_213_jdk11:
+    <<: *test
     <<: *machine_ubuntu
     environment:
       - <<: *scala_213
@@ -217,73 +155,37 @@ workflows:
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - test_211_jdk8_jvm:
+      - test_211_jdk8:
           requires:
             - lint
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - test_212_jdk8_jvm:
+      - test_212_jdk8:
           requires:
             - lint
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - test_213_jdk8_jvm:
+      - test_213_jdk8:
           requires:
             - lint
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - test_211_jdk11_jvm:
+      - test_211_jdk11:
           requires:
             - lint
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - test_212_jdk11_jvm:
+      - test_212_jdk11:
           requires:
             - lint
           filters:
             tags:
               only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - test_213_jdk11_jvm:
-          requires:
-            - lint
-          filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - test_211_jdk8_js:
-          requires:
-            - lint
-          filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - test_212_jdk8_js:
-          requires:
-            - lint
-          filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - test_213_jdk8_js:
-          requires:
-            - lint
-          filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - test_211_jdk11_js:
-          requires:
-            - lint
-          filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - test_212_jdk11_js:
-          requires:
-            - lint
-          filters:
-            tags:
-              only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-      - test_213_jdk11_js:
+      - test_213_jdk11:
           requires:
             - lint
           filters:
@@ -293,18 +195,12 @@ workflows:
       - release:
           context: Sonatype
           requires:
-            - test_211_jdk8_jvm
-            - test_211_jdk11_jvm
-            - test_211_jdk8_js
-            - test_211_jdk11_js
-            - test_212_jdk8_jvm
-            - test_212_jdk11_jvm
-            - test_212_jdk8_js
-            - test_212_jdk11_js
-            - test_213_jdk8_jvm
-            - test_213_jdk11_jvm
-            - test_213_jdk8_js
-            - test_213_jdk11_js
+            - test_211_jdk8
+            - test_211_jdk11
+            - test_212_jdk8
+            - test_212_jdk11
+            - test_213_jdk8
+            - test_213_jdk11
           filters:
             branches:
               ignore: /.*/
