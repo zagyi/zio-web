@@ -16,6 +16,17 @@
  *
  */
 
-package zio.http.model
+package zio.web.http.model
 
-case class Header(name: String, value: String)
+import java.time.LocalDateTime
+
+// https://tools.ietf.org/html/rfc6265
+final case class Cookie(
+  value: String,
+  domain: Option[String],
+  path: Option[String],
+  expires: Option[LocalDateTime],
+  maxAge: Option[Long],
+  secure: Boolean,
+  httpOnly: Boolean
+)

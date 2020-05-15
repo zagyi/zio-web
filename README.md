@@ -1,12 +1,59 @@
-# ZIO-HTTP
+# ZIO-WEB
 
 | CI | Release | Issues |  Discord |
 | --- | --- | --- | --- |
 | [![Build Status][badge-ci]][link-ci] | [![Release Artifacts][badge-sonatype]][link-sonatype] | [![Average time to resolve an issue][badge-iim]][link-iim] | [![badge-discord]][link-discord] |
 
-TBD: readme notes
+ZIO Web supports the features you need to be productive:
+
+ * **Endpoints**. Define reliable and scalable endpoints concisely, type-safely, and composably.
+ * **Protocol-Agnostic**. Deploy endpoints to any supported protocol, including HTTP and gRPC.
+ * **Stream-friendly**. Handle requests and responses that are too big too fit in memory at once.
+   * WebSockets
+ * Introspection-friendly
+   * **Documentation**. Generate documentation that is automatically in-sync with the endpoints.
+   * **Client**. Interact with an endpoint type-safely from Scala without writing any code.
+ * Middleware-friendly
+   * **Metrics/Monitoring**. Built-in integration with ZIO ZMX.
+   * **Rate-limiting**. Customizable rate-limiting with DDOS protection.
+   * Via third-party libraries, pluggable authentication, authorization, persistence, caching, session management
+ * **High-performance**. Fastest functional Scala library.
+
+Compared to the competition, ZIO Web features: 
+
+ * ZIO native
+ * Simplicity
+   * Minimal / no type classes, implicits, or higher-kinded types
+   * Highly discoverable API
+   * Good type inference 
+   * Minimal jargon
+ * Expert-friendly
+   * Type-safe
+   * No magic, edge cases, or surprises
+ * GraalVM-ready
+ * No macros, compiler plug-ins, or code generation
+
+ * Open / closed for extension???
+ * HTTP-specific? (full support for HTTP protocol?)
+ * Performance?
 
 - [Homepage](https://zio.dev)
+
+## Protocols
+
+ZIO Web supports the following protocols out-of-the-box:
+
+* HTTP
+* WebSockets
+* gRPC
+* Avro
+
+## Risks 
+
+ - Codec superpowers?
+ - Protocol-specific middleware?
+ - Annotations, specifically HTTP?
+ - OpenAPI?
 
 ## Installation
 

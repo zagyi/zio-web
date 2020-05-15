@@ -16,9 +16,9 @@
  *
  */
 
-package zio.http.model
+package zio.web.http.model
 
-case class StatusCode(value: Int) extends AnyVal {
+final case class StatusCode(value: Int) extends AnyVal {
   def isInformation: Boolean = value / 100 == 1
   def isSuccess: Boolean     = value / 100 == 2
   def isRedirect: Boolean    = value / 100 == 3

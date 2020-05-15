@@ -16,17 +16,18 @@
  *
  */
 
-package zio.http.model
+package zio.web.http.model
 
 import java.nio.charset.{ StandardCharsets, Charset => JCharset }
 
 import scala.util.Try
 
-final case class Charset private (value: String) extends AnyVal {
+sealed abstract case class Charset private (value: String) {
   override def toString: String = value
 }
 
 object Charset {
+  private def apply(value: String): Charset = new Charset(value) {}
 
   def fromCharset(charSet: JCharset): Charset = Charset(charSet.name)
 
