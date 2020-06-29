@@ -2,16 +2,30 @@ package zio.web.http
 
 import zio.ZIO
 
+/**
+ * An `HttpMiddleware[R, E]` value defines HTTP middleware that requires an
+ * environment `R` and may fail with error type `E`.
+ *
+ * Middleware can be used to add request/response logging, metrics, monitoring,
+ * authentication, authorization, and other features.
+ */
 final case class HttpMiddleware[-R, +E](
   request: HttpMiddleware.Request[R, E],
   response: HttpMiddleware.Response[R, E]
 ) { self =>
 
+  /**
+   * Composes this middleware with the specified middleware.
+   */
   def <>[R1 <: R, E1 >: E](that: HttpMiddleware[R1, E1]): HttpMiddleware[R1, E1] =
     HttpMiddleware(self.request <> that.request, self.response <> that.response)
 }
 
 object HttpMiddleware {
+
+  /**
+   * HTTP middleware that does nothing.
+   */
   val none: HttpMiddleware[Any, Nothing] = HttpMiddleware(Request.none, Response.none)
 
   trait Request[-R, +E] { self =>

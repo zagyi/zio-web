@@ -31,7 +31,7 @@ trait Example extends http.HttpProtocolModule {
     import zio.clock._
 
     lazy val getUserProfileHandler: UserId => ZIO[Clock, Nothing, UserProfile] = ???
-    lazy val setUserProfileHandler: (UserId, UserProfile) => Task[Unit]      = ???
+    lazy val setUserProfileHandler: (UserId, UserProfile) => Task[Unit]        = ???
 
     lazy val handlers = getUserProfileHandler :: setUserProfileHandler :: Handlers.empty
 
