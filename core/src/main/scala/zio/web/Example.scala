@@ -1,8 +1,8 @@
 package zio.web
 
 trait Example extends ProtocolModule {
-  trait UserId
-  trait UserProfile
+  sealed case class UserId(id: String)
+  sealed case class UserProfile(age: Int, fullName: String, address: String)
 
   lazy val userJoe: UserId = ???
 
@@ -10,10 +10,10 @@ trait Example extends ProtocolModule {
   lazy val userProfileCodec: Codec[UserProfile] = ???
 
   lazy val getUserProfile =
-    endpoint("getUserProfile").asRequest(userIdCodec).asResponse(userProfileCodec)
+    endpoint("getUserProfile").withRequest(userIdCodec).withResponse(userProfileCodec)
 
   lazy val setUserProfile =
-    endpoint("setUserProfile").asRequest(zipCodec(userIdCodec, userProfileCodec)).asResponse(unitCodec)
+    endpoint("setUserProfile").withRequest(zipCodec(userIdCodec, userProfileCodec)).withResponse(unitCodec)
 
   lazy val userService =
     service("users", "The user service allows retrieving and updating user profiles")
@@ -22,5 +22,15 @@ trait Example extends ProtocolModule {
         setUserProfile
       )
 
-  val result = getUserProfile(userJoe)
+  object client_example {
+    val userProfile = getUserProfile(userJoe)
+  }
+
+  object server_example {
+    val serverLayer = makeServer(userService)
+  }
+
+  object docs_example {
+    val docs = makeDocs(userService)
+  }
 }

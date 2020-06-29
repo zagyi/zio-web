@@ -6,12 +6,13 @@ import zio._
 
 trait ProtocolModule extends EndpointModule {
   type ServerConfig
+  type ClientConfig
   type ServerService
   type ProtocolDocs
 
-  def server(service: Service): ZLayer[ServerConfig, IOException, Has[ServerService]]
+  def makeServer(service: Service): ZLayer[Has[ServerConfig], IOException, Has[ServerService]]
 
-  def docs(service: Service): ProtocolDocs
+  def makeDocs(service: Service): ProtocolDocs
 
-  def client: ZLayer[WebConfig, IOException, Has[ClientService]]
+  def makeClient: ZLayer[Has[ClientConfig], IOException, Has[ClientService]]
 }

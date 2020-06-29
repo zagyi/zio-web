@@ -23,7 +23,7 @@ In Thrift, services are described by 1 or more "methods" with a name, e.g.:
   string helloWorld(string input)
 
  */
-trait EndpointModule extends CodecModule {
+trait EndpointModule extends codec.CodecModule {
 
   trait ClientService {
     def lookup[Request, Response](endpoint: Endpoint[Request, Response]): Request => Task[Response]
@@ -50,10 +50,10 @@ trait EndpointModule extends CodecModule {
      */
     def ??(details: String): Endpoint[Request, Response] = copy(doc = doc <> Doc(details))
 
-    def asRequest[Request2](r: Codec[Request2]): Endpoint[Request2, Response] =
+    def withRequest[Request2](r: Codec[Request2]): Endpoint[Request2, Response] =
       mapRequest(_ => r)
 
-    def asResponse[Response2](r: Codec[Response2]): Endpoint[Request, Response2] =
+    def withResponse[Response2](r: Codec[Response2]): Endpoint[Request, Response2] =
       mapResponse(_ => r)
 
     def mapRequest[Request2](f: Codec[Request] => Codec[Request2]): Endpoint[Request2, Response] =
