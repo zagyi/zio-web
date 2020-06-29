@@ -151,19 +151,59 @@ trait EndpointModule extends codec.CodecModule {
   final def service(name: String, text: String): Service[Any] =
     service(name) ?? text
 
-  type Handler[-R, -A, +B] = A => zio.RIO[R, B]
+  type Handler[-R, -A, +B]        = A => zio.RIO[R, B]
+  type Handler2[-R, -A1, -A2, +B] = (A1, A2) => zio.RIO[R, B]
+
   sealed trait Handlers[-R, A] { self =>
 
     def ::[R1 <: R, I, O](that: Handler[R1, I, O]): Handlers[R1, Endpoint[I, O] with A] =
       Handlers.Cons[R1, I, O, A](that, self)
 
-    // TODO: Add :: for Handler2, Handler3, Handler4, etc., which auto-tuple
+    def ::[R1 <: R, I1, I2, O](that: Handler2[R1, I1, I2, O]): Handlers[R1, Endpoint[(I1, I2), O] with A] =
+      Handlers.Cons[R1, (I1, I2), O, A](that.tupled, self)
+
+    // TODO: Add :: for Handler3, Handler4, etc., which auto-tuple
   }
 
   object Handlers {
     private[web] case object Empty extends Handlers[Any, Any]
     sealed private[web] case class Cons[R, I, O, X](head: Handler[R, I, O], tail: Handlers[R, X])
         extends Handlers[R, Endpoint[I, O] with X]
+
+    def apply[R, I1, O1](e1: Handler[R, I1, O1]): Handlers[R, Endpoint[I1, O1]] = e1 :: empty
+
+    def apply[R, I1, O1, I2, O2](
+      e1: Handler[R, I1, O1],
+      e2: Handler[R, I2, O2]
+    ): Handlers[R, Endpoint[I1, O1] with Endpoint[I2, O2]] =
+      e2 :: [R, I2, O2] apply(e1)
+
+    def apply[R, I1, O1, I2, O2, I3, O3](
+      e1: Handler[R, I1, O1],
+      e2: Handler[R, I2, O2],
+      e3: Handler[R, I3, O3]
+    ): Handlers[R, Endpoint[I1, O1] with Endpoint[I2, O2] with Endpoint[I3, O3]] =
+      e3 :: [R, I3, O3] apply(e1, e2)
+
+    def apply[R, I1, O1, I2, O2, I3, O3, I4, O4](
+      e1: Handler[R, I1, O1],
+      e2: Handler[R, I2, O2],
+      e3: Handler[R, I3, O3],
+      e4: Handler[R, I4, O4]
+    ): Handlers[R, Endpoint[I1, O1] with Endpoint[I2, O2] with Endpoint[I3, O3] with Endpoint[I4, O4]] =
+      e4 :: [R, I4, O4] apply(e1, e2, e3)
+
+    def apply[R, I1, O1, I2, O2, I3, O3, I4, O4, I5, O5](
+      e1: Handler[R, I1, O1],
+      e2: Handler[R, I2, O2],
+      e3: Handler[R, I3, O3],
+      e4: Handler[R, I4, O4],
+      e5: Handler[R, I5, O5]
+    ): Handlers[R, Endpoint[I1, O1] with Endpoint[I2, O2] with Endpoint[I3, O3] with Endpoint[I4, O4] with Endpoint[
+      I5,
+      O5
+    ]] =
+      e5 :: [R, I5, O5] apply(e1, e2, e3, e4)
 
     val empty: Handlers[Any, Any] = Empty
   }
