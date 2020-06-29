@@ -19,57 +19,26 @@ trait Example extends http.HttpProtocolModule {
 
   lazy val userService =
     service("users", "The user service allows retrieving and updating user profiles")
-      .endpoints(
-        getUserProfile,
-        setUserProfile
-      )
+      .endpoint(getUserProfile)
+      .endpoint(setUserProfile)
 
   object client_example {
-    val userProfile = getUserProfile(userJoe)
+    lazy val userProfile = userService.invoke(getUserProfile)(userJoe)
   }
 
   object server_example {
-    val serverLayer = makeServer(HttpMiddleware.none, userService)
+    import zio._
+    import zio.clock._
+
+    lazy val getUserProfileHandler: UserId => ZIO[Clock, Nothing, UserProfile] = ???
+    lazy val setUserProfileHandler: ((UserId, UserProfile)) => Task[Unit]      = ???
+
+    lazy val handlers = getUserProfileHandler :: setUserProfileHandler :: Handlers.empty
+
+    lazy val serverLayer = makeServer(HttpMiddleware.none, userService, handlers)
   }
 
   object docs_example {
     val docs = makeDocs(userService)
-  }
-}
-
-/*
-
- Middleware-friendly
- * **Metrics/Monitoring**. Built-in integration with ZIO ZMX.
- * **Rate-limiting**. Customizable rate-limiting with DDOS protection.
- * Via third-party libraries, pluggable authentication, authorization, persistence, caching, session management
-
- */
-
-trait Middleware {
-
-  object http {
-    // Non-invasive
-    //
-    //   - Extract out and do something with information from the protocol-level request
-    //   - Extract out and do something with information from the protocol-level response
-    //
-    // Invasive
-    //
-    //    - Redirection / rewriting
-    //    - Add new "endpoints"
-
-    trait HttpRequest
-    trait HttpResponse
-
-    type ExecutableEndpoint = HttpRequest => zio.Task[HttpResponse]
-
-    type Middleware = ExecutableEndpoint => ExecutableEndpoint
-
-    val loggingMiddleware: Middleware =
-      (ee: ExecutableEndpoint) =>
-        (req: HttpRequest) => {
-          ee(req)
-        }
   }
 }

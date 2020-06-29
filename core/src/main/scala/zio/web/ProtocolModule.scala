@@ -11,12 +11,13 @@ trait ProtocolModule extends EndpointModule {
   type ProtocolDocs
   type Middleware[-R, +E]
 
-  def makeServer[R <: Has[ServerConfig], E](
+  def makeServer[R <: Has[ServerConfig], E, A](
     middleware: Middleware[R, E],
-    service: Service
+    service: Service[A],
+    handlers: Handlers[R, A]
   ): ZLayer[R, IOException, Has[ServerService]]
 
-  def makeDocs(service: Service): ProtocolDocs
+  def makeDocs(service: Service[_]): ProtocolDocs
 
-  def makeClient: ZLayer[Has[ClientConfig], IOException, Has[ClientService]]
+  def makeClient[A](service: Service[A]): ZLayer[Has[ClientConfig], IOException, Has[ClientService[A]]]
 }
