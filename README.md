@@ -34,8 +34,6 @@ Compared to the competition, ZIO Web features:
  * No macros, compiler plug-ins, or code generation
 
  * Open / closed for extension???
- * HTTP-specific? (full support for HTTP protocol?)
- * Performance?
 
 - [Homepage](https://zio.dev)
 
