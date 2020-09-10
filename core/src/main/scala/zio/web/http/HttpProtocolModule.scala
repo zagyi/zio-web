@@ -7,4 +7,8 @@ trait HttpProtocolModule extends ProtocolModule {
   type ClientConfig       = HttpClientConfig
   type ServerService      = Any
   type Middleware[-R, +E] = HttpMiddleware[R, E]
+  type MinMetadata        = Any
+  type MaxMetadata        = Route
+
+  sealed case class Route(url: String)
 }

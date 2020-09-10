@@ -10,14 +10,17 @@ trait ProtocolModule extends EndpointModule {
   type ServerService
   type ProtocolDocs
   type Middleware[-R, +E]
+  type MinMetadata
+  type MaxMetadata
 
-  def makeServer[R <: Has[ServerConfig], E, A](
+  def makeServer[M >: MaxMetadata <: MinMetadata, R <: Has[ServerConfig], E, A](
     middleware: Middleware[R, E],
-    service: Service[A],
-    handlers: Handlers[R, A]
+    service: Service[M, A]
   ): ZLayer[R, IOException, Has[ServerService]]
 
-  def makeDocs(service: Service[_]): ProtocolDocs
+  def makeDocs[M >: MaxMetadata <: MinMetadata](service: Service[M, _]): ProtocolDocs
 
-  def makeClient[A](service: Service[A]): ZLayer[Has[ClientConfig], IOException, Has[ClientService[A]]]
+  def makeClient[M >: MaxMetadata <: MinMetadata, A](
+    service: Service[M, A]
+  ): ZLayer[Has[ClientConfig], IOException, Has[ClientService[A]]]
 }

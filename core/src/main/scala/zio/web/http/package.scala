@@ -1,3 +1,5 @@
 package zio.web
 
-package object http
+package object http {
+  type Headers = Map[String, String]
+}

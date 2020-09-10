@@ -12,30 +12,22 @@ trait Example extends http.HttpProtocolModule {
   lazy val userProfileCodec: Codec[UserProfile] = ???
 
   lazy val getUserProfile =
-    endpoint("getUserProfile").withRequest(userIdCodec).withResponse(userProfileCodec)
+    endpoint("getUserProfile").withRequest(userIdCodec).withResponse(userProfileCodec) @@ Route("/users/")
 
   lazy val setUserProfile =
     endpoint("setUserProfile").withRequest(zipCodec(userIdCodec, userProfileCodec)).withResponse(unitCodec)
 
   lazy val userService =
     service("users", "The user service allows retrieving and updating user profiles")
-      .endpoint(getUserProfile)
-      .endpoint(setUserProfile)
+      .endpoint(getUserProfile.handler(_ => ???))
+      .endpoint(setUserProfile.handler(_ => ???))
 
   object client_example {
     lazy val userProfile = userService.invoke(getUserProfile)(userJoe)
   }
 
   object server_example {
-    import zio._
-    import zio.clock._
-
-    lazy val getUserProfileHandler: UserId => ZIO[Clock, Nothing, UserProfile] = ???
-    lazy val setUserProfileHandler: (UserId, UserProfile) => Task[Unit]        = ???
-
-    lazy val handlers = getUserProfileHandler :: setUserProfileHandler :: Handlers.empty
-
-    lazy val serverLayer = makeServer(HttpMiddleware.none, userService, handlers)
+    lazy val serverLayer = makeServer(HttpMiddleware.none, userService)
   }
 
   object docs_example {

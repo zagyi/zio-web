@@ -23,116 +23,148 @@ In Thrift, services are described by 1 or more "methods" with a name, e.g.:
   string helloWorld(string input)
 
  */
-trait EndpointModule extends codec.CodecModule {
+trait EndpointModule extends codec.CodecModule { endpointModule =>
+  type Handler[-R, -A, +B]        = A => zio.RIO[R, B]
+  type Handler2[-R, -A1, -A2, +B] = (A1, A2) => zio.RIO[R, B]
 
   trait ClientService[A] {
 
-    def lookup[Request, Response](endpoint: Endpoint[Request, Response])(
-      implicit ev: A <:< Endpoint[Request, Response]
+    def lookup[Request, Response](endpoint: Endpoint[_, Request, Response, _])(
+      implicit ev: A <:< Endpoint[_, Request, Response, _]
     ): Request => Task[Response]
   }
 
-  sealed case class Endpoint[Request, Response](
+  sealed trait Annotations[+A] { self =>
+    def +[M](that: M): Annotations[M with A] = Annotations.Cons[M, A](that, self)
+
+    def add[M](that: M): Annotations[M with A] = Annotations.Cons[M, A](that, self)
+  }
+
+  object Annotations {
+    case object None                                                   extends Annotations[Any]
+    sealed case class Cons[M, +Tail](head: M, tail: Annotations[Tail]) extends Annotations[M with Tail]
+
+    val none: Annotations[Any] = None
+  }
+
+  sealed case class Endpoint[Metadata, Request, Response, +Handler](
     endpointName: String,
     doc: Doc,
     request: Codec[Request],
-    response: Codec[Response]
+    response: Codec[Response],
+    handler: Handler,
+    annotations: Annotations[Metadata]
   ) { self =>
+
+    /**
+     * Adds an annotation to the endpoint.
+     */
+    def @@[M2](metadata: M2): Endpoint[Metadata with M2, Request, Response, Handler] =
+      copy(annotations = self.annotations.add[M2](metadata))
 
     /**
      * Returns a new endpoint that attaches additional documentation to this
      * endpoint.
      */
-    def ??(details: Doc): Endpoint[Request, Response] = copy(doc = doc <> details)
+    def ??(details: Doc): Endpoint[Metadata, Request, Response, Handler] = copy(doc = doc <> details)
 
     /**
      * Returns a new endpoint that attaches additional (string) documentation
      * to this endpoint.
      */
-    def ??(details: String): Endpoint[Request, Response] = copy(doc = doc <> Doc(details))
+    def ??(details: String): Endpoint[Metadata, Request, Response, Handler] = copy(doc = doc <> Doc(details))
 
-    def withRequest[Request2](r: Codec[Request2]): Endpoint[Request2, Response] =
-      mapRequest(_ => r)
+    def handler(h: endpointModule.Handler[Any, Request, Response]): Endpoint2[Metadata, Request, Response] =
+      copy(handler = h)
 
-    def withResponse[Response2](r: Codec[Response2]): Endpoint[Request, Response2] =
-      mapResponse(_ => r)
-
-    def mapRequest[Request2](f: Codec[Request] => Codec[Request2]): Endpoint[Request2, Response] =
+    def mapRequest[Request2](f: Codec[Request] => Codec[Request2]): Endpoint[Metadata, Request2, Response, Handler] =
       copy(request = f(request))
 
-    def mapResponse[Response2](f: Codec[Response] => Codec[Response2]): Endpoint[Request, Response2] =
+    def mapResponse[Response2](
+      f: Codec[Response] => Codec[Response2]
+    ): Endpoint[Metadata, Request, Response2, Handler] =
       copy(response = f(response))
 
     /**
      * Returns a new endpoint that adds the specified request information
      * into the request required by this endpoint.
      */
-    def request[Request2](request2: Codec[Request2]): Endpoint[(Request, Request2), Response] =
+    def request[Request2](request2: Codec[Request2]): Endpoint[Metadata, (Request, Request2), Response, Handler] =
       copy(request = zipCodec(request, request2))
 
     /**
      * Returns a new endpoint that adds the specified response information
      * into the response produced by this endpoint.
      */
-    def response[Response2](response2: Codec[Response2]): Endpoint[Request, (Response, Response2)] =
+    def response[Response2](response2: Codec[Response2]): Endpoint[Metadata, Request, (Response, Response2), Handler] =
       copy(response = zipCodec(response, response2))
+
+    def withRequest[Request2](r: Codec[Request2]): Endpoint[Metadata, Request2, Response, Handler] =
+      mapRequest(_ => r)
+
+    def withResponse[Response2](r: Codec[Response2]): Endpoint[Metadata, Request, Response2, Handler] =
+      mapResponse(_ => r)
   }
+
+  type Endpoint2[M, I, O] = Endpoint[M, I, O, Handler[Any, I, O]]
 
   /**
    * Constructs a new endpoint with the specified name.
    */
-  final def endpoint(name: String): Endpoint[Unit, Unit] =
-    Endpoint(name, Doc.Empty, unitCodec, unitCodec)
+  final def endpoint(name: String): Endpoint[Any, Unit, Unit, Unit] =
+    Endpoint(name, Doc.Empty, unitCodec, unitCodec, (), Annotations.none)
 
   /**
    * Constructs a new endpoint with the specified name and text documentation.
    */
-  final def endpoint(name: String, text: String): Endpoint[Unit, Unit] =
+  final def endpoint(name: String, text: String): Endpoint[Any, Unit, Unit, Unit] =
     endpoint(name) ?? text
 
-  trait Endpoints[A] { self =>
-    def ::[I, O](that: Endpoint[I, O]): Endpoints[Endpoint[I, O] with A] = Endpoints.Cons[I, O, A](that, self)
+  trait Endpoints[+M, A] { self =>
+
+    def ::[M1 >: M, I, O](that: Endpoint2[M1, I, O]): Endpoints[M1, Endpoint2[M1, I, O] with A] =
+      Endpoints.Cons[M1, I, O, A](that, self)
   }
 
   object Endpoints {
-    private[web] case object Empty extends Endpoints[Any]
-    sealed private[web] case class Cons[I, O, X](head: Endpoint[I, O], tail: Endpoints[X])
-        extends Endpoints[Endpoint[I, O] with X]
+    private[web] case object Empty extends Endpoints[Nothing, Any]
+    sealed private[web] case class Cons[M, I, O, X](head: Endpoint2[M, I, O], tail: Endpoints[M, X])
+        extends Endpoints[M, Endpoint2[M, I, O] with X]
 
-    val empty: Endpoints[Any] = Empty
+    val empty: Endpoints[Nothing, Any] = Empty
   }
 
   /**
    * A model of a service, which has a name, documentation, and a collection
    * of endpoints.
    */
-  sealed case class Service[A](serviceName: String, doc: Doc, endpoints: Endpoints[A]) { self =>
+  sealed case class Service[+M, A](serviceName: String, doc: Doc, endpoints: Endpoints[M, A]) { self =>
 
     /**
      * Returns a new service that attaches additional documentation to this
      * service.
      */
-    def ??(details: Doc): Service[A] = copy(doc = doc <> details)
+    def ??(details: Doc): Service[M, A] = copy(doc = doc <> details)
 
     /**
      * Returns a new service that attaches additional (string) documentation
      * to this service.
      */
-    def ??(details: String): Service[A] = copy(doc = doc <> Doc(details))
+    def ??(details: String): Service[M, A] = copy(doc = doc <> Doc(details))
 
     /**
      * Returns a new service that attaches additional endpoints to this
      * service.
      */
-    def endpoint[I, O](e: Endpoint[I, O]): Service[Endpoint[I, O] with A] =
+    def endpoint[M1 >: M, I, O](e: Endpoint2[M1, I, O]): Service[M1, Endpoint2[M1, I, O] with A] =
       copy(endpoints = e :: endpoints)
 
-    def invoke[I, O](endpoint: Endpoint[I, O]): InvokeApply[A, I, O] = new InvokeApply[A, I, O](endpoint)
+    def invoke[I, O](endpoint: Endpoint[_, I, O, _]): InvokeApply[A, I, O] = new InvokeApply[A, I, O](endpoint)
   }
 
-  class InvokeApply[A, I, O](endpoint: Endpoint[I, O]) {
+  class InvokeApply[A, I, O](endpoint: Endpoint[_, I, O, _]) {
 
-    def apply(i: I)(implicit ev: A <:< Endpoint[I, O], t: zio.Tagged[A]): RIO[Has[ClientService[A]], O] = {
+    def apply(i: I)(implicit ev: A <:< Endpoint[_, I, O, _], t: zio.Tagged[A]): RIO[Has[ClientService[A]], O] = {
       val _ = t
       ZIO.accessM[Has[ClientService[A]]](_.get.lookup(endpoint)(ev)(i))
     }
@@ -141,70 +173,13 @@ trait EndpointModule extends codec.CodecModule {
   /**
    * Builds a new service without any endpoints.
    */
-  final def service(name: String): Service[Any] =
+  final def service(name: String): Service[Nothing, Any] =
     Service(name, Doc.Empty, Endpoints.empty)
 
   /**
    * Builds a new service without any endpoints, but with the specified
    * text description.
    */
-  final def service(name: String, text: String): Service[Any] =
+  final def service(name: String, text: String): Service[Nothing, Any] =
     service(name) ?? text
-
-  type Handler[-R, -A, +B]        = A => zio.RIO[R, B]
-  type Handler2[-R, -A1, -A2, +B] = (A1, A2) => zio.RIO[R, B]
-
-  sealed trait Handlers[-R, A] { self =>
-
-    def ::[R1 <: R, I, O](that: Handler[R1, I, O]): Handlers[R1, Endpoint[I, O] with A] =
-      Handlers.Cons[R1, I, O, A](that, self)
-
-    def ::[R1 <: R, I1, I2, O](that: Handler2[R1, I1, I2, O]): Handlers[R1, Endpoint[(I1, I2), O] with A] =
-      Handlers.Cons[R1, (I1, I2), O, A](that.tupled, self)
-
-    // TODO: Add :: for Handler3, Handler4, etc., which auto-tuple
-  }
-
-  object Handlers {
-    private[web] case object Empty extends Handlers[Any, Any]
-    sealed private[web] case class Cons[R, I, O, X](head: Handler[R, I, O], tail: Handlers[R, X])
-        extends Handlers[R, Endpoint[I, O] with X]
-
-    def apply[R, I1, O1](e1: Handler[R, I1, O1]): Handlers[R, Endpoint[I1, O1]] = e1 :: empty
-
-    def apply[R, I1, O1, I2, O2](
-      e1: Handler[R, I1, O1],
-      e2: Handler[R, I2, O2]
-    ): Handlers[R, Endpoint[I1, O1] with Endpoint[I2, O2]] =
-      e2 :: [R, I2, O2] apply(e1)
-
-    def apply[R, I1, O1, I2, O2, I3, O3](
-      e1: Handler[R, I1, O1],
-      e2: Handler[R, I2, O2],
-      e3: Handler[R, I3, O3]
-    ): Handlers[R, Endpoint[I1, O1] with Endpoint[I2, O2] with Endpoint[I3, O3]] =
-      e3 :: [R, I3, O3] apply(e1, e2)
-
-    def apply[R, I1, O1, I2, O2, I3, O3, I4, O4](
-      e1: Handler[R, I1, O1],
-      e2: Handler[R, I2, O2],
-      e3: Handler[R, I3, O3],
-      e4: Handler[R, I4, O4]
-    ): Handlers[R, Endpoint[I1, O1] with Endpoint[I2, O2] with Endpoint[I3, O3] with Endpoint[I4, O4]] =
-      e4 :: [R, I4, O4] apply(e1, e2, e3)
-
-    def apply[R, I1, O1, I2, O2, I3, O3, I4, O4, I5, O5](
-      e1: Handler[R, I1, O1],
-      e2: Handler[R, I2, O2],
-      e3: Handler[R, I3, O3],
-      e4: Handler[R, I4, O4],
-      e5: Handler[R, I5, O5]
-    ): Handlers[R, Endpoint[I1, O1] with Endpoint[I2, O2] with Endpoint[I3, O3] with Endpoint[I4, O4] with Endpoint[
-      I5,
-      O5
-    ]] =
-      e5 :: [R, I5, O5] apply(e1, e2, e3, e4)
-
-    val empty: Handlers[Any, Any] = Empty
-  }
 }

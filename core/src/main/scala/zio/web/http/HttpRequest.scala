@@ -25,12 +25,11 @@ object HttpRequest {
   sealed trait SchemeSpecific
   sealed trait Fragment
 
-  case object Succeed                   extends HttpRequest[Unit]
-  case object Fail                      extends HttpRequest[Nothing]
-  case object Method                    extends HttpRequest[String]
-  final case class Header(name: String) extends HttpRequest[String]
-  final case class URI(scheme: Scheme, schemeSpecific: SchemeSpecific, fragment: Fragment)
-      extends HttpRequest[java.net.URI]
+  case object Succeed                                                              extends HttpRequest[Unit]
+  case object Fail                                                                 extends HttpRequest[Nothing]
+  case object Method                                                               extends HttpRequest[String]
+  final case class Header(name: String)                                            extends HttpRequest[String]
+  final case object URI                                                            extends HttpRequest[java.net.URI]
   final case class Map[A, B](request: HttpRequest[A], f: A => B)                   extends HttpRequest[B]
   final case class OrElseEither[A, B](left: HttpRequest[A], right: HttpRequest[B]) extends HttpRequest[Either[A, B]]
   final case class Zip[A, B](left: HttpRequest[A], right: HttpRequest[B])          extends HttpRequest[(A, B)]
