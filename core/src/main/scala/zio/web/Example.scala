@@ -11,19 +11,23 @@ trait Example extends http.HttpProtocolModule {
   lazy val userIdCodec: Codec[UserId]           = ???
   lazy val userProfileCodec: Codec[UserProfile] = ???
 
-  lazy val getUserProfile =
-    endpoint("getUserProfile").withRequest(userIdCodec).withResponse(userProfileCodec) @@ Route("/users/")
+  lazy val getUserProfile: Endpoint2[Any, UserId, UserProfile] =
+    endpoint("getUserProfile").withRequest(userIdCodec).withResponse(userProfileCodec).handler(_ => ???) @@ Route(
+      "/users/"
+    )
 
   lazy val setUserProfile =
-    endpoint("setUserProfile").withRequest(zipCodec(userIdCodec, userProfileCodec)).withResponse(unitCodec)
+    endpoint("setUserProfile")
+      .withRequest(zipCodec(userIdCodec, userProfileCodec))
+      .withResponse(unitCodec)
+      .handler(_ => ???)
 
   lazy val userService =
-    service("users", "The user service allows retrieving and updating user profiles")
-      .endpoint(getUserProfile.handler(_ => ???))
-      .endpoint(setUserProfile.handler(_ => ???))
+    getUserProfile ::
+      setUserProfile :: Endpoints.empty
 
   object client_example {
-    lazy val userProfile = userService.invoke(getUserProfile)(userJoe)
+    lazy val userProfile = userService.invoke(getUserProfile)(userJoe).provideLayer(makeClient(userService))
   }
 
   object server_example {
