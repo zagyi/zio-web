@@ -18,10 +18,13 @@ trait Example extends http.HttpProtocolModule {
     "address"  -> Codec[String]
   )(UserProfile(_, _, _), UserProfile.unapply(_))
 
+  import zio.web.http.model._
+
   lazy val getUserProfile: Endpoint2[Any, UserId, UserProfile] =
-    endpoint("getUserProfile").withRequest(userIdCodec).withResponse(userProfileCodec).handler(_ => ???) @@ Route(
-      "/users/"
-    )
+    endpoint("getUserProfile")
+      .withRequest(userIdCodec)
+      .withResponse(userProfileCodec)
+      .handler(_ => ???) @@ Route("/users/") @@ Method.GET
 
   lazy val setUserProfile =
     endpoint("setUserProfile")
