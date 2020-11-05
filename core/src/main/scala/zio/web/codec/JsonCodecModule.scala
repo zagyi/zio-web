@@ -1,16 +1,17 @@
 package zio.web.codec
 
-trait JsonCodecModule extends CodecModule { m =>
-  sealed trait Json
+import zio.stream.ZTransducer
 
+trait JsonCodecModule extends CodecModule {
+  // TODO: Implement for ZIO JSON
   type Input = String
 
   type CodecError = String
 
   val codecImplementation: CodecImplementation =
     new CodecImplementation {
-      def encode[A](codec: Codec[A]): A => Input                     = ???
-      def decode[A](codec: Codec[A]): Input => Either[CodecError, A] = ???
+      def encoder[A](codec: Codec[A]): ZTransducer[Any, Nothing, A, Input]    = ???
+      def decoder[A](codec: Codec[A]): ZTransducer[Any, CodecError, Input, A] = ???
 
       def fail(message: String): CodecError = ???
     }

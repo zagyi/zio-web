@@ -1,6 +1,7 @@
 package zio.web.codec
 
 import zio.Chunk
+import zio.stream.ZTransducer
 
 trait CodecModule {
   type Input
@@ -9,11 +10,11 @@ trait CodecModule {
   sealed trait Codec[A] { self =>
     def ? : Codec[Option[A]] = Codec.Optional(self)
 
-    def encode(a: A): Input =
-      codecImplementation.encode(self)(a)
+    def encoder: ZTransducer[Any, Nothing, A, Input] =
+      codecImplementation.encoder(self)
 
-    def decode(input: Input): Either[CodecError, A] =
-      codecImplementation.decode(self)(input)
+    def decoder: ZTransducer[Any, CodecError, Input, A] =
+      codecImplementation.decoder(self)
 
     def transform[B](f: A => B, g: B => A): Codec[B] =
       Codec.Transform[A, B](self, a => Right(f(a)), b => Right(g(b)))
@@ -154,8 +155,8 @@ trait CodecModule {
   val codecImplementation: CodecImplementation
 
   trait CodecImplementation {
-    def encode[A](codec: Codec[A]): A => Input
-    def decode[A](codec: Codec[A]): Input => Either[CodecError, A]
+    def encoder[A](codec: Codec[A]): ZTransducer[Any, Nothing, A, Input]
+    def decoder[A](codec: Codec[A]): ZTransducer[Any, CodecError, Input, A]
 
     def fail(message: String): CodecError
   }

@@ -13,4 +13,6 @@ object StandardType {
   implicit object DoubleCodec extends StandardType[Double]
   implicit object ByteCodec   extends StandardType[Byte]
   implicit object CharCodec   extends StandardType[Char]
+
+  // TODO: Add java.time
 }
