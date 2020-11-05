@@ -1,5 +1,7 @@
 package zio.web
 
+import zio.web.codec._
+
 trait Example extends http.HttpProtocolModule {
   import http.HttpMiddleware
 

@@ -1,6 +1,7 @@
 package zio.web
 
 import zio._
+import zio.web.codec.Codec
 import zio.web.docs._
 
 /*
@@ -23,7 +24,7 @@ In Thrift, services are described by 1 or more "methods" with a name, e.g.:
   string helloWorld(string input)
 
  */
-trait EndpointModule extends codec.CodecModule { endpointModule =>
+trait EndpointModule { endpointModule =>
   type Handler[-R, -A, +B]        = A => zio.RIO[R, B]
   type Handler2[-R, -A1, -A2, +B] = (A1, A2) => zio.RIO[R, B]
 
