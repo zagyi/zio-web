@@ -103,7 +103,7 @@ object HttpMiddleware {
                 ),
                 Response(
                   HttpResponse.Succeed,
-                  (flag: Boolean, _: Unit) => (if (flag) ref.update(_ - 1) else ZIO.unit).as(Map())
+                  (flag: Boolean, _: Unit) => (if (flag) ref.update(_ - 1) else ZIO.unit).as(HttpHeaders.empty)
                 )
               )
             }
@@ -169,7 +169,7 @@ object HttpMiddleware {
 
     val pattern: HttpResponse[Metadata]
 
-    val processor: (S, Metadata) => ZIO[R, E, Headers]
+    val processor: (S, Metadata) => ZIO[R, E, HttpHeaders]
 
     def <>[R1 <: R, E1 >: E, S2](that: Response[R1, E1, S2]): Response[R1, E1, (S, S2)] =
       new Response[R1, E1, (S, S2)] {
@@ -187,7 +187,7 @@ object HttpMiddleware {
 
   object Response {
 
-    def apply[R, E, S, M](p: HttpResponse[M], f: (S, M) => ZIO[R, E, Headers]): Response[R, E, S] =
+    def apply[R, E, S, M](p: HttpResponse[M], f: (S, M) => ZIO[R, E, HttpHeaders]): Response[R, E, S] =
       new Response[R, E, S] {
         type Metadata = M
         val pattern   = p
@@ -195,6 +195,6 @@ object HttpMiddleware {
       }
 
     val none: Response[Any, Nothing, Any] =
-      apply[Any, Nothing, Any, Unit](HttpResponse.Succeed, (_, _) => ZIO.succeed(Map()))
+      apply[Any, Nothing, Any, Unit](HttpResponse.Succeed, (_, _) => ZIO.succeed(HttpHeaders.empty))
   }
 }

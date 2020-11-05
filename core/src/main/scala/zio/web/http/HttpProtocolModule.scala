@@ -1,6 +1,9 @@
 package zio.web.http
 
+import zio._
 import zio.web._
+
+import java.io.IOException
 
 trait HttpProtocolModule extends ProtocolModule {
   type ServerConfig       = HttpServerConfig
@@ -11,4 +14,16 @@ trait HttpProtocolModule extends ProtocolModule {
   type MaxMetadata        = Route
 
   sealed case class Route(url: String)
+
+  override def makeServer[M >: MaxMetadata <: MinMetadata, R <: Has[ServerConfig], E, A](
+    middleware: Middleware[R, E],
+    endpoints: Endpoints[M, A]
+  ): ZLayer[R, IOException, Has[ServerService]] = ???
+
+  override def makeDocs[M >: MaxMetadata <: MinMetadata](endpoints: Endpoints[M, _]): ProtocolDocs =
+    ???
+
+  override def makeClient[M >: MaxMetadata <: MinMetadata, A](
+    endpoints: Endpoints[M, A]
+  ): ZLayer[Has[ClientConfig], IOException, Has[ClientService[A]]] = ???
 }
