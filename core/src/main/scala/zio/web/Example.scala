@@ -6,10 +6,15 @@ trait Example extends http.HttpProtocolModule {
   sealed case class UserId(id: String)
   sealed case class UserProfile(age: Int, fullName: String, address: String)
 
-  lazy val userJoe: UserId = ???
+  val userJoe: UserId = UserId("123123")
 
-  lazy val userIdCodec: Codec[UserId]           = ???
-  lazy val userProfileCodec: Codec[UserProfile] = ???
+  val userIdCodec: Codec[UserId] = Codec.caseClassN("id" -> Codec[String])(UserId(_), UserId.unapply(_))
+
+  val userProfileCodec: Codec[UserProfile] = Codec.caseClassN(
+    "age"      -> Codec[Int],
+    "fullName" -> Codec[String],
+    "address"  -> Codec[String]
+  )(UserProfile(_, _, _), UserProfile.unapply(_))
 
   lazy val getUserProfile: Endpoint2[Any, UserId, UserProfile] =
     endpoint("getUserProfile").withRequest(userIdCodec).withResponse(userProfileCodec).handler(_ => ???) @@ Route(
@@ -18,8 +23,8 @@ trait Example extends http.HttpProtocolModule {
 
   lazy val setUserProfile =
     endpoint("setUserProfile")
-      .withRequest(zipCodec(userIdCodec, userProfileCodec))
-      .withResponse(unitCodec)
+      .withRequest(Codec.zipN(userIdCodec, userProfileCodec))
+      .withResponse(Codec[Unit])
       .handler(_ => ???)
 
   lazy val userService =

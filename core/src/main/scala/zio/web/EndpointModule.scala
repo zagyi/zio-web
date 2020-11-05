@@ -90,14 +90,14 @@ trait EndpointModule extends codec.CodecModule { endpointModule =>
      * into the request required by this endpoint.
      */
     def request[Request2](request2: Codec[Request2]): Endpoint[Metadata, (Request, Request2), Response, Handler] =
-      copy(request = zipCodec(request, request2))
+      copy(request = request.zip(request2))
 
     /**
      * Returns a new endpoint that adds the specified response information
      * into the response produced by this endpoint.
      */
     def response[Response2](response2: Codec[Response2]): Endpoint[Metadata, Request, (Response, Response2), Handler] =
-      copy(response = zipCodec(response, response2))
+      copy(response = response.zip(response2))
 
     def withRequest[Request2](r: Codec[Request2]): Endpoint[Metadata, Request2, Response, Handler] =
       mapRequest(_ => r)
@@ -112,7 +112,7 @@ trait EndpointModule extends codec.CodecModule { endpointModule =>
    * Constructs a new endpoint with the specified name.
    */
   final def endpoint(name: String): Endpoint[Any, Unit, Unit, Unit] =
-    Endpoint(name, Doc.Empty, unitCodec, unitCodec, (), Annotations.none)
+    Endpoint(name, Doc.Empty, Codec[Unit], Codec[Unit], (), Annotations.none)
 
   /**
    * Constructs a new endpoint with the specified name and text documentation.
@@ -127,7 +127,7 @@ trait EndpointModule extends codec.CodecModule { endpointModule =>
      */
     def invoke[M, Request, Response](endpoint: Endpoint2[M, Request, Response])(request: Request)(
       implicit ev: A <:< Endpoint2[M, Request, Response],
-      tagA: zio.Tagged[A]
+      tagA: zio.Tag[A]
     ): ZIO[Has[ClientService[A]], Throwable, Response] = {
       val _ = tagA
       ZIO.accessM[Has[ClientService[A]]](_.get[ClientService[A]].invoke(endpoint, request))

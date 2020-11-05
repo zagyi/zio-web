@@ -8,7 +8,7 @@ import BuildInfoKeys._
 
 object BuildHelper {
 
-  val zioVersion    = "1.0.0-RC18-2"
+  val zioVersion    = "1.0.3"
   val zioNioVersion = "1.0.0-RC6"
 
   private val testDeps = Seq(
