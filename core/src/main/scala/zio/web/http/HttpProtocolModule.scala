@@ -13,6 +13,8 @@ trait HttpProtocolModule extends ProtocolModule {
   type MinMetadata        = Any
   type MaxMetadata        = Route
 
+  val defaultProtocol: codec.Protocol
+
   sealed case class Route(url: String)
 
   override def makeServer[M >: MaxMetadata <: MinMetadata, R <: Has[ServerConfig], E, A](
