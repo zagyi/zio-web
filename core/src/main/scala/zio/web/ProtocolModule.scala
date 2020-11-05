@@ -3,12 +3,12 @@ package zio.web
 import java.io.IOException
 
 import zio._
+import zio.web.docs.Doc
 
 trait ProtocolModule extends EndpointModule {
   type ServerConfig
   type ClientConfig
   type ServerService
-  type ProtocolDocs
   type Middleware[-R, +E]
   type MinMetadata
   type MaxMetadata
@@ -18,7 +18,7 @@ trait ProtocolModule extends EndpointModule {
     endpoints: Endpoints[M, A]
   ): ZLayer[R, IOException, Has[ServerService]]
 
-  def makeDocs[M >: MaxMetadata <: MinMetadata](endpoints: Endpoints[M, _]): ProtocolDocs
+  def makeDocs[M >: MaxMetadata <: MinMetadata](endpoints: Endpoints[M, _]): Doc
 
   def makeClient[M >: MaxMetadata <: MinMetadata, A](
     endpoints: Endpoints[M, A]
