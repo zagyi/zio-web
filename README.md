@@ -8,7 +8,7 @@ ZIO Web supports the features you need to be productive:
 
  * **Endpoints**. Define reliable and scalable endpoints concisely, type-safely, and composably.
  * **Protocol-Agnostic**. Deploy endpoints to any supported protocol, including HTTP and gRPC.
- * **Stream-friendly**. Handle requests and responses that are too big too fit in memory at once.
+ * **Stream-friendly**. Handle requests and responses that are too big to fit in memory at once.
    * WebSockets
  * Introspection-friendly
    * **Documentation**. Generate documentation that is automatically in-sync with the endpoints.
