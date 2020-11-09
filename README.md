@@ -13,16 +13,17 @@ ZIO Web supports the features you need to be productive:
  * Introspection-friendly
    * **Documentation**. Generate documentation that is automatically in-sync with the endpoints.
    * **Client**. Interact with an endpoint type-safely from Scala without writing any code.
- * Middleware-friendly
+ * Middleware-friendly. Middleware is type-safe and compositional and can include built-in middleware or third-party middleware, or combinations.
    * **Metrics/Monitoring**. Built-in integration with ZIO ZMX.
    * **Rate-limiting**. Customizable rate-limiting with DDOS protection.
-   * Via third-party libraries, pluggable authentication, authorization, persistence, caching, session management
+   * **Logging**. Request/response logging in Common Log format.
+   * Via third-party libraries, pluggable authentication, authorization, persistence, caching, session management.
  * **High-performance**. Fastest functional Scala library.
 
 Compared to the competition, ZIO Web features: 
 
  * ZIO native
- * Simplicity
+ * Beginner-friendly
    * Minimal / no type classes, implicits, or higher-kinded types
    * Highly discoverable API
    * Good type inference 
@@ -31,11 +32,8 @@ Compared to the competition, ZIO Web features:
    * Type-safe
    * No magic, edge cases, or surprises
  * GraalVM-ready
- * No macros, compiler plug-ins, or code generation
-
- * Open / closed for extension???
-
-- [Homepage](https://zio.dev)
+ * Fast performance
+ * Composable
 
 ## Protocols
 
@@ -45,13 +43,6 @@ ZIO Web supports the following protocols out-of-the-box:
 * WebSockets
 * gRPC
 * Avro
-
-## Risks 
-
- - Schema superpowers?
- - Protocol-specific middleware?
- - Annotations, specifically HTTP?
- - OpenAPI?
 
 ## Installation
 
