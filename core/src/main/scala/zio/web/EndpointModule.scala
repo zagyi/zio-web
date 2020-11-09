@@ -1,8 +1,8 @@
 package zio.web
 
-import zio._
-import zio.web.codec.Codec
-import zio.web.docs._
+import _root_.zio.web.schema.Schema
+import _root_.zio.web.docs._
+import _root_.zio.{ Has, RIO, Tag, Task, ZIO }
 
 /*
 
@@ -25,8 +25,8 @@ In Thrift, services are described by 1 or more "methods" with a name, e.g.:
 
  */
 trait EndpointModule { endpointModule =>
-  type Handler[-R, -A, +B]        = A => zio.RIO[R, B]
-  type Handler2[-R, -A1, -A2, +B] = (A1, A2) => zio.RIO[R, B]
+  type Handler[-R, -A, +B]        = A => RIO[R, B]
+  type Handler2[-R, -A1, -A2, +B] = (A1, A2) => RIO[R, B]
 
   trait ClientService[A] {
 
@@ -51,8 +51,8 @@ trait EndpointModule { endpointModule =>
   sealed case class Endpoint[+Metadata, Request, Response, +Handler](
     endpointName: String,
     doc: Doc,
-    request: Codec[Request],
-    response: Codec[Response],
+    request: Schema[Request],
+    response: Schema[Response],
     handler: Handler,
     annotations: Annotations[Metadata]
   ) { self =>
@@ -78,11 +78,11 @@ trait EndpointModule { endpointModule =>
     def handler(h: endpointModule.Handler[Any, Request, Response]): Endpoint2[Metadata, Request, Response] =
       copy(handler = h)
 
-    def mapRequest[Request2](f: Codec[Request] => Codec[Request2]): Endpoint[Metadata, Request2, Response, Handler] =
+    def mapRequest[Request2](f: Schema[Request] => Schema[Request2]): Endpoint[Metadata, Request2, Response, Handler] =
       copy(request = f(request))
 
     def mapResponse[Response2](
-      f: Codec[Response] => Codec[Response2]
+      f: Schema[Response] => Schema[Response2]
     ): Endpoint[Metadata, Request, Response2, Handler] =
       copy(response = f(response))
 
@@ -90,20 +90,20 @@ trait EndpointModule { endpointModule =>
      * Returns a new endpoint that adds the specified request information
      * into the request required by this endpoint.
      */
-    def request[Request2](request2: Codec[Request2]): Endpoint[Metadata, (Request, Request2), Response, Handler] =
+    def request[Request2](request2: Schema[Request2]): Endpoint[Metadata, (Request, Request2), Response, Handler] =
       copy(request = request.zip(request2))
 
     /**
      * Returns a new endpoint that adds the specified response information
      * into the response produced by this endpoint.
      */
-    def response[Response2](response2: Codec[Response2]): Endpoint[Metadata, Request, (Response, Response2), Handler] =
+    def response[Response2](response2: Schema[Response2]): Endpoint[Metadata, Request, (Response, Response2), Handler] =
       copy(response = response.zip(response2))
 
-    def withRequest[Request2](r: Codec[Request2]): Endpoint[Metadata, Request2, Response, Handler] =
+    def withRequest[Request2](r: Schema[Request2]): Endpoint[Metadata, Request2, Response, Handler] =
       mapRequest(_ => r)
 
-    def withResponse[Response2](r: Codec[Response2]): Endpoint[Metadata, Request, Response2, Handler] =
+    def withResponse[Response2](r: Schema[Response2]): Endpoint[Metadata, Request, Response2, Handler] =
       mapResponse(_ => r)
   }
 
@@ -113,7 +113,7 @@ trait EndpointModule { endpointModule =>
    * Constructs a new endpoint with the specified name.
    */
   final def endpoint(name: String): Endpoint[Any, Unit, Unit, Unit] =
-    Endpoint(name, Doc.Empty, Codec[Unit], Codec[Unit], (), Annotations.none)
+    Endpoint(name, Doc.Empty, Schema[Unit], Schema[Unit], (), Annotations.none)
 
   /**
    * Constructs a new endpoint with the specified name and text documentation.
@@ -128,7 +128,7 @@ trait EndpointModule { endpointModule =>
      */
     def invoke[M, Request, Response](endpoint: Endpoint2[M, Request, Response])(request: Request)(
       implicit ev: A <:< Endpoint2[M, Request, Response],
-      tagA: zio.Tag[A]
+      tagA: Tag[A]
     ): ZIO[Has[ClientService[A]], Throwable, Response] = {
       val _ = tagA
       ZIO.accessM[Has[ClientService[A]]](_.get[ClientService[A]].invoke(endpoint, request))

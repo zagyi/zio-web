@@ -2,7 +2,7 @@ package zio.web
 
 import java.io.IOException
 
-import zio._
+import _root_.zio.{ Has, ZLayer }
 
 trait ProtocolModule extends EndpointModule {
   type ServerConfig

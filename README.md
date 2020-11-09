@@ -48,7 +48,7 @@ ZIO Web supports the following protocols out-of-the-box:
 
 ## Risks 
 
- - Codec superpowers?
+ - Schema superpowers?
  - Protocol-specific middleware?
  - Annotations, specifically HTTP?
  - OpenAPI?

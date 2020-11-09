@@ -1,8 +1,8 @@
 package zio.web.http
 
 import zio._
-import zio.web._
 import zio.web.http.model._
+import zio.web._
 
 import java.io.IOException
 
@@ -14,9 +14,9 @@ trait HttpProtocolModule extends ProtocolModule {
   type MinMetadata        = Any
   type MaxMetadata        = Route with Method
 
-  val defaultProtocol: codec.Protocol
+  val defaultProtocol: codec.Codec
 
-  val allProtocols: Map[String, codec.Protocol]
+  val allProtocols: Map[String, codec.Codec]
 
   override def makeServer[M >: MaxMetadata <: MinMetadata, R <: Has[ServerConfig], E, A](
     middleware: Middleware[R, E],

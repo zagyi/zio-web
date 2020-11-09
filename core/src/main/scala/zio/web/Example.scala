@@ -1,6 +1,8 @@
 package zio.web
 
-import zio.web.codec._
+package zio.web
+
+import _root_.zio.web.schema._
 
 trait Example extends http.HttpProtocolModule {
   import http.HttpMiddleware
@@ -10,26 +12,26 @@ trait Example extends http.HttpProtocolModule {
 
   val userJoe: UserId = UserId("123123")
 
-  val userIdCodec: Codec[UserId] = Codec.caseClassN("id" -> Codec[String])(UserId(_), UserId.unapply(_))
+  val userIdSchema: Schema[UserId] = Schema.caseClassN("id" -> Schema[String])(UserId(_), UserId.unapply(_))
 
-  val userProfileCodec: Codec[UserProfile] = Codec.caseClassN(
-    "age"      -> Codec[Int],
-    "fullName" -> Codec[String],
-    "address"  -> Codec[String]
+  val userProfileSchema: Schema[UserProfile] = Schema.caseClassN(
+    "age"      -> Schema[Int],
+    "fullName" -> Schema[String],
+    "address"  -> Schema[String]
   )(UserProfile(_, _, _), UserProfile.unapply(_))
 
-  import zio.web.http.model._
+  import _root_.zio.web.http.model._
 
   lazy val getUserProfile: Endpoint2[Any, UserId, UserProfile] =
     endpoint("getUserProfile")
-      .withRequest(userIdCodec)
-      .withResponse(userProfileCodec)
+      .withRequest(userIdSchema)
+      .withResponse(userProfileSchema)
       .handler(_ => ???) @@ Route("/users/") @@ Method.GET
 
   lazy val setUserProfile =
     endpoint("setUserProfile")
-      .withRequest(Codec.zipN(userIdCodec, userProfileCodec))
-      .withResponse(Codec[Unit])
+      .withRequest(Schema.zipN(userIdSchema, userProfileSchema))
+      .withResponse(Schema[Unit])
       .handler(_ => ???)
 
   lazy val userService =
