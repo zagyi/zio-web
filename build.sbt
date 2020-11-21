@@ -45,9 +45,7 @@ lazy val root = project
     name := "zio-web",
     skip in publish := true
   )
-  .aggregate(
-    core
-  )
+  .aggregate(core)
 
 lazy val core = project
   .in(file("core"))
@@ -61,3 +59,7 @@ lazy val core = project
       "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
     )
   )
+  .dependsOn(schema)
+
+lazy val schema =
+  ProjectRef(uri("git://github.com/zio/zio-schema.git#main"), "core")
