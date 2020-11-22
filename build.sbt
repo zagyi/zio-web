@@ -55,9 +55,12 @@ lazy val core = project
       "dev.zio"        %% "zio"          % zioVersion,
       "dev.zio"        %% "zio-streams"  % zioVersion,
       "dev.zio"        %% "zio-nio"      % zioNioVersion,
+      "dev.zio"        %% "zio-test"     % zioVersion % "Test",
+      "dev.zio"        %% "zio-test-sbt" % zioVersion % "Test",
       "com.propensive" %% "magnolia"     % magnoliaVersion,
       "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
-    )
+    ),
+    testFrameworks := Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
   )
   .dependsOn(schema)
 
