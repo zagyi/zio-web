@@ -1,11 +1,14 @@
 package zio.web.http.internal
 
+import java.io.{ Reader, StringReader }
+
+import zio.random.Random
 import java.io.StringReader
 import zio.{Chunk, Task}
 import zio.test.Assertion._
 import zio.test._
 import zio.web.http.internal.HttpLexer.HeaderParseError._
-import zio.web.http.internal.HttpLexer.parseHeaders
+import zio.web.http.internal.HttpLexer.{ TokenChars, parseHeaders }
 import zio.web.http.model.{Method, Version}
 
 import scala.util.Random
@@ -116,12 +119,7 @@ object HttpLexerSpec extends DefaultRunnableSpec {
     def toStringWithCRLF: String = s.stripMargin.replaceAll("\n", "\r\n") + "\r\n\r\n"
   }
 
-  private val multilineHeader =
-    HeaderLines("""foo: obsolete
-                  |     multiline
-                  |     header""")
-
-  val failureScenarios: Gen[Any, (String, HttpLexer.HeaderParseError)] =
+  private lazy val failureScenarios =
     Gen.fromIterable(
       Seq(
         ""                              -> UnexpectedEnd,
@@ -147,68 +145,110 @@ object HttpLexerSpec extends DefaultRunnableSpec {
       )
     )
 
+  private lazy val multilineHeader =
+    HeaderLines("""foo: obsolete
+                  |     multiline
+                  |     header""")
+
+  private lazy val headerName = Gen.string1(Gen.elements(TokenChars: _*))
+
+  private lazy val headerValue = Gen.string(whitespaceOrPrintableOrExtended).map(_.trim)
+
+  private lazy val whitespaceOrPrintableOrExtended =
+    Gen.elements('\t' +: (' ' to 0xff): _*)
+
+  private lazy val optionalWhitespace = Gen.string(Gen.elements(' ', '\t'))
+
+  private def duplicateSome[R1, R2 >: R1, A](
+    as: Iterable[A],
+    factor: Gen[R2, Int]
+  ): Gen[R2, List[A]] = {
+    val listOfGenDuplicates: Iterable[Gen[R2, List[A]]] =
+      as.map { a =>
+        Gen
+          .const(a)
+          .crossWith(factor)((a, factor) => List.fill(factor)(a))
+      }
+    Gen
+      .crossAll(listOfGenDuplicates)
+      .map(_.flatten)
+  }
+
+  private lazy val duplicationFactor =
+    Gen.weighted(
+      Gen.const(1) -> 90,
+      Gen.const(2) -> 8,
+      Gen.const(3) -> 2
+    )
+
+  private def selectSome[A](as: Iterable[A], decide: Gen[Random, Boolean]) =
+    as.map(Gen.const(_))
+      .foldLeft(Gen.const(List.empty[A]): Gen[Random, List[A]]) { (acc, genA) =>
+        for {
+          decision <- decide
+          a        <- genA
+          as       <- acc
+        } yield if (decision) a :: as else as
+      }
+
+  private def selectSome1[A](as: Iterable[A], decide: Gen[Random, Boolean] = Gen.boolean) =
+    selectSome(as, decide).flatMap {
+      case Nil        => Gen.elements(as.toSeq: _*).map(List(_))
+      case selectedAs => Gen.const(selectedAs)
+    }
+
+  val testGen =
+    for {
+      distinctHeaderNames <- Gen.setOf(headerName)
+      headerNamesWithDups <- duplicateSome(distinctHeaderNames, duplicationFactor)
+      headerNames         <- Gen.fromRandom(_.shuffle(headerNamesWithDups))
+      headerValues        <- Gen.listOfN(headerNames.size)(headerValue)
+      owss                <- Gen.listOfN(headerNames.size * 2)(optionalWhitespace)
+      body                <- Gen.alphaNumericString
+      absentHeaderNames   <- Gen.setOf(headerName)
+      headersToExtract <- selectSome1(distinctHeaderNames ++ absentHeaderNames)
+                           .map(headerNames => headerNames.map(_.toLowerCase).distinct)
+    } yield {
+      val pairedOwss = owss.grouped(2).map(_.toSeq).toSeq
+      val headerLines =
+        headerNames
+          .lazyZip(headerValues)
+          .lazyZip(pairedOwss)
+          .map {
+            case (name, value, Seq(leftOws, rightOws)) =>
+              s"$name:$leftOws$value$rightOws\r\n"
+          }
+
+      val headerNameToValuesMap =
+        headerNames.zip(headerValues).groupMap(_._1.toLowerCase)(_._2)
+
+      val extractedHeaders =
+        headersToExtract.map { k =>
+          Chunk.fromIterable(
+            headerNameToValuesMap.getOrElse(k, List.empty)
+          )
+        }
+
+      (
+        headerLines.mkString + "\r\n" + body,
+        headersToExtract,
+        body,
+        extractedHeaders
+      )
+    }
+
   def headerSuite =
     suite("http header lexer")(
-      parseHeaderTestWithRawString(
-        "zero headers",
-        "\r\n",
-        "Host"
-      )(Chunk.empty),
-      //
-      parseHeaderTest(
-        "single header",
-        HeaderLines("""Host: foo.com"""),
-        "Host"
-      )("foo.com"),
-      //
-      parseHeaderTest(
-        "two headers",
-        HeaderLines("""Host: foo.com
-                      |Connection: Keep-Alive"""),
-        "Host",
-        "Connection"
-      )("foo.com", "Keep-Alive"),
-      //
-      // TODO: replace "empty header *" by adding generator for empty/whitespace
-      //       string and header to parse
-      parseHeaderTest(
-        "empty header 1",
-        HeaderLines("Host:  \t "),
-        "Host"
-      )(""),
-      //
-      parseHeaderTest0(
-        "empty header 2",
-        HeaderLines("Host: \t  "),
-        "foo"
-      )(Chunk.empty),
-      //
-      parseHeaderTest0(
-        "multiple headers with the same name",
-        HeaderLines("""Host: foo.com
-                      |foo: 1
-                      |foo: 2""".stripMargin),
-        "Host",
-        "foo"
-      )(Chunk("foo.com"), Chunk("1", "2")),
-      //
-      parseHeaderTest(
-        "case insensitive",
-        HeaderLines("""Host: foo.com
-                      |Connection: Keep-Alive"""),
-        "Host",
-        "Connection"
-      )("foo.com", "Keep-Alive"),
-      //
-      parseHeaderTestWithRawString(
-        "header values are trimmed",
-        "Host:  \t  foo.com   \t  \r\n" +
-          "foo:   b  a  r    \r\n" +
-          "\r\n",
-        "Host",
-        "foo"
-      )(Chunk("foo.com"), Chunk("b  a  r")),
-      //
+      testM("generated positive cases") {
+        check(testGen) {
+          case (msg, headersToExtract, expectedBody, expectedHeaders) =>
+            val reader        = new StringReader(msg)
+            val actualHeaders = parseHeaders(headersToExtract.toArray, reader).toSeq
+            val actualBody    = mkString(reader)
+            assert(actualHeaders)(hasSameElements(expectedHeaders)) &&
+            assert(actualBody)(equalTo(expectedBody))
+        }
+      } @@ TestAspect.samples(10000),
       testM("failure scenarios") {
         checkM(failureScenarios) {
           case (request, expectedError) =>
@@ -218,53 +258,13 @@ object HttpLexerSpec extends DefaultRunnableSpec {
               ).run
             )(fails(equalTo(expectedError)))
         }
-      },
-      //
-      test("don't parse past the end of the headers") {
-        val headerLines =
-          HeaderLines(
-            """Host: 123.com
-              |foo: bar"""
-          ).toStringWithCRLF
-
-        val headerReader = new StringReader(headerLines + "body")
-
-        val parsedHeaders =
-          HttpLexer.parseHeaders(Array("Host", "foo"), headerReader)
-
-        val remainder = {
-          var c         = -1
-          val remainder = new StringBuilder()
-          while ({ c = headerReader.read(); c != -1 }) remainder.append(c.toChar)
-          remainder.toString
-        }
-
-        assert(parsedHeaders.toSeq)(
-          equalTo(Seq(Chunk("123.com"), Chunk("bar")))
-        ) &&
-        assert(remainder)(equalTo("body"))
       }
     )
 
-  def parseHeaderTest(name: String, headerLines: HeaderLines, firstHeader: String, otherHeaders: String*)(
-    firstExpectedValue: String,
-    otherExpectedValues: String*
-  ): ZSpec[Any, Nothing] = {
-    val expectedValues = (firstExpectedValue +: otherExpectedValues).map(Chunk(_))
-    parseHeaderTest0(name, headerLines, firstHeader, otherHeaders: _*)(expectedValues: _*)
+  private def mkString(reader: Reader) = {
+    var c         = -1
+    val remainder = new StringBuilder()
+    while ({ c = reader.read(); c != -1 }) remainder.append(c.toChar)
+    remainder.toString
   }
-
-  def parseHeaderTest0(name: String, headerLines: HeaderLines, firstHeader: String, otherHeaders: String*)(
-    expectedValues: Chunk[String]*
-  ): ZSpec[Any, Nothing] =
-    parseHeaderTestWithRawString(name, headerLines.toStringWithCRLF, firstHeader, otherHeaders: _*)(expectedValues: _*)
-
-  def parseHeaderTestWithRawString(name: String, headerLines: String, firstHeader: String, otherHeaders: String*)(
-    expectedValues: Chunk[String]*
-  ): ZSpec[Any, Nothing] =
-    test(name) {
-      val headers                    = (firstHeader +: otherHeaders).toArray
-      val actual: Seq[Chunk[String]] = parseHeaders(headers, new StringReader(headerLines)).toSeq
-      assert(actual)(equalTo(expectedValues))
-    }
 }

@@ -133,12 +133,12 @@ object HttpLexer {
         )
   }
 
+  val TokenChars = Seq('!', '#', '$', '%', '&', '\'', '*', '+', '-', '.', '^', '_', '`', '|', '~') ++
+    ('0' to '9') ++ ('a' to 'z') ++ ('A' to 'Z')
+
   private val isTokenChar: Array[Boolean] = {
     val r = Array.fill(256)(false)
-    (Seq('!', '#', '$', '%', '&', '\'', '*', '+', '-', '.', '^', '_', '`', '|', '~') ++
-      ('0' to '9') ++ ('a' to 'z') ++ ('A' to 'Z')).foreach { char =>
-      r(char.toInt) = true
-    }
+    TokenChars.foreach(char => r(char.toInt) = true)
     r
   }
 
@@ -150,7 +150,7 @@ object HttpLexer {
   def parseHeaders(headers: Array[String], reader: Reader): Array[Chunk[String]] = {
     // TODO:
     //  * Async???
-    //  * Add support for HTTP 2 (current version assumes HTTP 1.1)
+    //  * Support for HTTP/2, HTTP/3
     //  * Parameterize on protocol version
     //  * Implement limits (e.g. number of whitespace characters to read before
     //    rejecting the request) to prevent huge messages from overloading the
@@ -187,15 +187,13 @@ object HttpLexer {
     def parseHeaderName(): Int = {
       var i: Int       = 0
       var bitset: Long = matrix.initial
-      while ({ read(); c != ':' }) {
-        if (c == -1)
-          throw UnexpectedEnd
-        else if (isTokenChar(c)) {
-          bitset = matrix.update(bitset, i, c)
-          i += 1
-        } else
-          throw InvalidCharacterInName(c)
-      }
+      while ({ read(); c != ':' }) if (c == -1)
+        throw UnexpectedEnd
+      else if (isTokenChar(c)) {
+        bitset = matrix.update(bitset, i, c)
+        i += 1
+      } else
+        throw InvalidCharacterInName(c)
       bitset = matrix.exact(bitset, i)
       matrix.first(bitset)
     }
@@ -213,14 +211,12 @@ object HttpLexer {
 
     def parseHeaderValue(): String = {
       val sb = new FastStringBuilder(64)
-      while ({ read(); c != '\r' }) {
-        if (c == -1)
-          throw UnexpectedEnd
-        else if (c == '\t' || ' ' <= c)
-          sb.append(c.toChar)
-        else
-          throw InvalidCharacterInValue(c)
-      }
+      while ({ read(); c != '\r' }) if (c == -1)
+        throw UnexpectedEnd
+      else if (c == '\t' || ' ' <= c)
+        sb.append(c.toChar)
+      else
+        throw InvalidCharacterInValue(c)
       readLF()
       sb.trimmedBuffer.toString
     }
@@ -260,11 +256,11 @@ object zio_json_reuse {
       val m           = Array.fill[Int](width * height)(-1)
       var string: Int = 0
       while (string < width) {
-        val s         = xs(string)
+        val s         = xs(string).toLowerCase
         val len       = s.length
         var char: Int = 0
         while (char < len) {
-          m(width * char + string) = s.toLowerCase.codePointAt(char)
+          m(width * char + string) = s.codePointAt(char)
           char += 1
         }
         string += 1
