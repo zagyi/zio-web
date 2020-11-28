@@ -6,6 +6,7 @@ import zio.random.Random
 import java.io.StringReader
 import zio.{Chunk, Task}
 import zio.test.Assertion._
+import zio.test.TestAspect.samples
 import zio.test._
 import zio.web.http.internal.HttpLexer.HeaderParseError._
 import zio.web.http.internal.HttpLexer.{ TokenChars, parseHeaders }
@@ -210,17 +211,21 @@ object HttpLexerSpec extends DefaultRunnableSpec {
                            .map(headerNames => headerNames.map(_.toLowerCase).distinct)
     } yield {
       val pairedOwss = owss.grouped(2).map(_.toSeq).toSeq
+
       val headerLines =
         headerNames
-          .lazyZip(headerValues)
-          .lazyZip(pairedOwss)
+          .zip(headerValues)
+          .zip(pairedOwss)
           .map {
-            case (name, value, Seq(leftOws, rightOws)) =>
+            case ((name, value), Seq(leftOws, rightOws)) =>
               s"$name:$leftOws$value$rightOws\r\n"
           }
 
-      val headerNameToValuesMap =
-        headerNames.zip(headerValues).groupMap(_._1.toLowerCase)(_._2)
+      val headerNameToValuesMap: Map[String, List[String]] =
+        headerNames
+          .zip(headerValues)
+          .groupBy(_._1.toLowerCase)
+          .map { case (k, kvs) => k -> kvs.map(_._2) }
 
       val extractedHeaders =
         headersToExtract.map { k =>
@@ -248,7 +253,7 @@ object HttpLexerSpec extends DefaultRunnableSpec {
             assert(actualHeaders)(hasSameElements(expectedHeaders)) &&
             assert(actualBody)(equalTo(expectedBody))
         }
-      } @@ TestAspect.samples(10000),
+      } @@ samples(1000),
       testM("failure scenarios") {
         checkM(failureScenarios) {
           case (request, expectedError) =>
