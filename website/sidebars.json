@@ -1,0 +1,37 @@
+{
+  "datatypes-sidebar": {
+    "Core Types": [
+      "datatypes/index",
+      "datatypes/standardtype",
+      "datatypes/schema",
+      "datatypes/codec",
+      "datatypes/doc"
+    ],
+    "HTTP Types": [
+      "datatypes/http/method",
+      "datatypes/http/route",
+      "datatypes/http/uri",
+      "datatypes/http/httpstatus",
+      "datatypes/http/httpclientconfig",
+      "datatypes/http/httpserverconfig",
+      "datatypes/http/httpheaders",
+      "datatypes/http/httprequest",
+      "datatypes/http/scheme",
+      "datatypes/http/httpresponse",
+      "datatypes/http/httpmiddleware",
+      "datatypes/http/request",
+      "datatypes/http/requestbuilder",
+      "datatypes/http/response",
+      "datatypes/http/middleware"
+    ],
+    "Modules": [
+      "datatypes/modules/method",
+      "datatypes/modules/annotations",
+      "datatypes/modules/endpoint",
+      "datatypes/modules/endpoints",
+      "datatypes/modules/clientservice",
+      "datatypes/modules/protocolmodule",
+      "datatypes/modules/httpprotocolmodule"
+    ]
+  }
+}

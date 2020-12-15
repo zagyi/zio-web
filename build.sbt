@@ -1,5 +1,6 @@
-import sbtcrossproject.CrossPlugin.autoImport.crossProject
 import BuildHelper._
+import sbtbuildinfo.BuildInfoKey
+import sbtbuildinfo.BuildInfoKeys.{ buildInfoKeys, buildInfoPackage }
 
 inThisBuild(
   List(
@@ -49,20 +50,31 @@ lazy val root = project
 
 lazy val core = project
   .in(file("core"))
+  .enablePlugins(BuildInfoPlugin)
   .settings(stdSettings("zio-http-core"))
   .settings(
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, isSnapshot),
+    buildInfoPackage := "zio.web",
     libraryDependencies ++= Seq(
       "dev.zio"        %% "zio"          % zioVersion,
       "dev.zio"        %% "zio-streams"  % zioVersion,
       "dev.zio"        %% "zio-nio"      % zioNioVersion,
-      "dev.zio"        %% "zio-test"     % zioVersion % "Test",
-      "dev.zio"        %% "zio-test-sbt" % zioVersion % "Test",
+      "dev.zio"        %% "zio-test"     % zioVersion % Test,
+      "dev.zio"        %% "zio-test-sbt" % zioVersion % Test,
       "com.propensive" %% "magnolia"     % magnoliaVersion,
       "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
     ),
     testFrameworks := Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
   )
   .dependsOn(schema)
+
+lazy val docs = project
+  .in(file("zio-web-docs"))
+  .enablePlugins(MdocPlugin, DocusaurusPlugin)
+  .dependsOn(core)
+  .settings(
+    moduleName := "zio-web-docs"
+  )
 
 lazy val schema =
   ProjectRef(uri("git://github.com/zio/zio-schema.git#main"), "core")
