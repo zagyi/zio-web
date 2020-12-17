@@ -1,5 +1,9 @@
 package zio.web.http.internal
 
+import zio.web.http.model.{ Method, Uri, Version }
+
+import scala.collection.mutable.Queue
+
 /*
 GET /hello.htm HTTP/1.1
 User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)
@@ -15,6 +19,67 @@ Connection: Keep-Alive
 <string xmlns="http://clearforest.com/">string</string>
  */
 object HttpLexer {
+
+  /**
+   *
+   * Parses start-line and returns a tuple of {@link zio.web.http.model.Method}, {@link zio.web.http.model.Uri} and {@link zio.web.http.model.Version}
+   *
+   * @param reader - HTTP request
+   * @param methodLimit - defines maximum HTTP method length
+   * @param uriLimit - defines maximum HTTP URI length (2048 search engine friendly)
+   * @param versionLimit - defines maximum HTTP version length (according to the spec and available HTTP versions it can be 8)
+   * @return a tuple of Method, Uri and Version
+   */
+  def parseStartLine(
+    reader: java.io.Reader,
+    methodLimit: Int = 7,
+    uriLimit: Int = 2048,
+    versionLimit: Int = 8
+  ): (Method, Uri, Version) = {
+    //TODO: not sure that it actually supports HTTP 2, I just started digging into HTTP 2 and it looks like a different story
+    // it uses something called frames and has a different layout
+    //TODO: https://undertow.io/blog/2015/04/27/An-in-depth-overview-of-HTTP2.html
+    //TODO: https://developers.google.com/web/fundamentals/performance/http2/
+
+    require(reader != null)
+    require(reader.ready())
+
+    // end of a line is CRLF
+    val CR = 0x0D
+    val LF = 0x0A
+    val SP = 0x20 // elements separated by space
+
+    val elements       = Queue[String]()
+    var currentElement = new StringBuilder
+    var char           = reader.read()
+
+    //there is no need in reading the whole http request, so reading till the end of the first line
+    while (char != LF) {
+
+      // define and check the corresponding limit based on a currently processing element
+      checkCurrentElementSize(currentElement.size, elements.size match {
+        case 0 => methodLimit
+        case 1 => uriLimit
+        case 2 => versionLimit
+      })
+
+      char match {
+        case c if c == SP || (c == CR && elements.size == 2) =>
+          elements += currentElement.toString(); currentElement = new StringBuilder
+        case _ => currentElement.append(char.toChar)
+      }
+
+      char = reader.read()
+
+      if (elements.size == 3 && char != LF)
+        throw new IllegalStateException("Malformed HTTP start-line")
+    }
+
+    def checkCurrentElementSize(elementSize: Int, limit: Int): Unit =
+      if (elementSize > limit) throw new IllegalStateException("Malformed HTTP start-line")
+
+    (Method.fromString(elements.dequeue()), Uri.fromString(elements.dequeue()), Version.fromString(elements.dequeue()))
+  }
 
   /**
    * Parses the headers with the specified names, returning an array that contains header values
