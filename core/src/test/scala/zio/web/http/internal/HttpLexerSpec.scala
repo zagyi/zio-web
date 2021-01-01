@@ -1,18 +1,16 @@
 package zio.web.http.internal
 
-import java.io.{ Reader, StringReader }
-
 import zio.random.Random
-import java.io.StringReader
-import zio.{Chunk, Task}
 import zio.test.Assertion._
 import zio.test.TestAspect.samples
 import zio.test._
 import zio.web.http.internal.HttpLexer.HeaderParseError._
 import zio.web.http.internal.HttpLexer.{ TokenChars, parseHeaders }
-import zio.web.http.model.{Method, Version}
+import zio.web.http.model.{ Method, Version }
+import zio.{ Chunk, Task }
 
-import scala.util.Random
+import java.io.{ Reader, StringReader }
+import scala.util.{ Random => ScRandom }
 
 object HttpLexerSpec extends DefaultRunnableSpec {
 
@@ -89,11 +87,11 @@ object HttpLexerSpec extends DefaultRunnableSpec {
       assertM(result)(fails(isSubtype[IllegalStateException](hasMessage(equalTo("Malformed HTTP start-line")))))
     },
     testM("check corrupted HTTP request (random string)") {
-      val result = Task(HttpLexer.parseStartLine(new StringReader(new Random().nextString(2048)))).run
+      val result = Task(HttpLexer.parseStartLine(new StringReader(new ScRandom().nextString(2048)))).run
       assertM(result)(fails(isSubtype[IllegalStateException](hasMessage(equalTo("Malformed HTTP start-line")))))
     },
     testM("check corrupted HTTP request (very long random string)") {
-      val result = Task(HttpLexer.parseStartLine(new StringReader(new Random().nextString(4096000)))).run
+      val result = Task(HttpLexer.parseStartLine(new StringReader(new ScRandom().nextString(4096000)))).run
       assertM(result)(fails(isSubtype[IllegalStateException](hasMessage(equalTo("Malformed HTTP start-line")))))
     },
     testM("check invalid HTTP method") {
@@ -116,7 +114,7 @@ object HttpLexerSpec extends DefaultRunnableSpec {
     }
   )
 
-    final case class HeaderLines(s: String) extends AnyVal {
+  final case class HeaderLines(s: String) extends AnyVal {
     def toStringWithCRLF: String = s.stripMargin.replaceAll("\n", "\r\n") + "\r\n\r\n"
   }
 
@@ -267,9 +265,9 @@ object HttpLexerSpec extends DefaultRunnableSpec {
     )
 
   private def mkString(reader: Reader) = {
-    var c         = -1
-    val remainder = new StringBuilder()
-    while ({ c = reader.read(); c != -1 }) remainder.append(c.toChar)
-    remainder.toString
+    var c       = -1
+    val builder = new StringBuilder()
+    while ({ c = reader.read(); c != -1 }) builder.append(c.toChar)
+    builder.toString
   }
 }
