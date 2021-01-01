@@ -1,7 +1,7 @@
 package zio.web.http
 
-import zio._
 import java.nio.charset.StandardCharsets
+import zio._
 
 /**
  * An `HttpMiddleware[R, E]` value defines HTTP middleware that requires an
@@ -37,8 +37,13 @@ object HttpMiddleware {
     def mapError[E2](f: E => E2): Middleware.Aux[R, E2, State] =
       Middleware(request.mapError(f), response.mapError(f))
 
-    def runRequest(method: String, uri: java.net.URI, headers: HttpHeaders): ZIO[R, Option[(State, E)], State] =
-      request.run(method, uri, headers)
+    def runRequest(
+      method: String,
+      uri: java.net.URI,
+      version: String,
+      headers: HttpHeaders
+    ): ZIO[R, Option[(State, E)], State] =
+      request.run(method, uri, version, headers)
 
     def runResponse[S2 <: State](s: S2, statusCode: Int, headers: HttpHeaders): ZIO[R, Option[E], Patch] =
       response.run(s, statusCode, headers)
@@ -82,16 +87,6 @@ object HttpMiddleware {
       )
     )
 
-  val logging: HttpMiddleware[zio.console.Console, Nothing] =
-    HttpMiddleware(
-      ZIO.succeed(
-        Middleware(
-          request(HttpRequest.Method.zip(HttpRequest.URI))(tuple => zio.console.putStrLn(tuple.toString)),
-          Response.none
-        )
-      )
-    )
-
   def rateLimiter(n: Int): HttpMiddleware[Any, None.type] =
     HttpMiddleware(
       Ref
@@ -109,7 +104,7 @@ object HttpMiddleware {
                 ),
                 Response(
                   HttpResponse.Succeed,
-                  (flag: Boolean, _: Unit) => (if (flag) ref.update(_ - 1) else ZIO.unit).as(Patch.empty)
+                  (flag: Boolean, _: Unit) => ref.update(_ - 1).when(flag).as(Patch.empty)
                 )
               )
             }
@@ -146,8 +141,8 @@ object HttpMiddleware {
     def mapError[E2](f: E => E2): Request[R, E2, S] =
       Request(pattern, (m: Metadata) => self.processor(m).mapError { case (s, e) => (s, f(e)) })
 
-    def run(method: String, uri: java.net.URI, headers: HttpHeaders): ZIO[R, Option[(S, E)], S] =
-      pattern.run(method, uri, headers) match {
+    def run(method: String, uri: java.net.URI, version: String, headers: HttpHeaders): ZIO[R, Option[(S, E)], S] =
+      pattern.run(method, uri, version, headers) match {
         case Some(metadata) => processor(metadata).mapError(Some(_))
         case None           => ZIO.fail(None)
       }
