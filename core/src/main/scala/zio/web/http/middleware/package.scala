@@ -5,6 +5,9 @@ import zio.blocking.Blocking
 import zio.clock._
 import zio.stream.{ Sink, ZSink, ZStream }
 import zio.web.http.HttpMiddleware._
+import zio.web.http.auth.BasicAuth
+import zio.web.http.auth.BasicAuth.AuthResult.{ Denied, Granted }
+import zio.web.http.auth.BasicAuth.{ AuthParams, AuthResult }
 
 import java.io.{ FileOutputStream, IOException, OutputStream }
 import java.time.format.DateTimeFormatter
@@ -55,4 +58,57 @@ package object middleware {
       .fromOutputStreamManaged(stream)
       .contramapChunks[String](_.flatMap(str => Chunk.fromIterable(str.getBytes)))
   }
+
+  def basicAuth[R, E](realm: String, authenticate: AuthParams => ZIO[R, E, AuthResult]): HttpMiddleware[R, E] =
+    HttpMiddleware(
+      ZIO.succeed(
+        Middleware(
+          request(HttpRequest.Header("Authorization").orElseEither(HttpRequest.Succeed)) {
+            case Left(header) =>
+              AuthParams.create(realm, header) match {
+                case Some(params) =>
+                  authenticate(params).bimap(e => (Option(Denied), e), g => Option(g))
+                case None =>
+                  ZIO.succeed(None)
+              }
+            case Right(_) => ZIO.succeed(None)
+
+          },
+          Response[R, E, Option[AuthResult], Int](
+            HttpResponse.StatusCode,
+            (authResult: Option[AuthResult], _: Int) =>
+              ZIO.succeed(
+                authResult.fold(BasicAuth.unauthorized(realm)) {
+                  case Granted => Patch.empty
+                  case Denied  => BasicAuth.forbidden
+                }
+              )
+          )
+        )
+      )
+    )
+
+  def rateLimiter(n: Int): HttpMiddleware[Any, None.type] =
+    HttpMiddleware(
+      Ref
+        .make[Int](0)
+        .flatMap(
+          ref =>
+            ZIO.succeed {
+              Middleware(
+                Request(
+                  HttpRequest.Succeed,
+                  (_: Unit) =>
+                    ref.modify { old =>
+                      if (old < n) (ZIO.succeed(true), n + 1) else (ZIO.fail(false -> None), n)
+                    }.flatten
+                ),
+                Response(
+                  HttpResponse.Succeed,
+                  (flag: Boolean, _: Unit) => ref.update(_ - 1).when(flag).as(Patch.empty)
+                )
+              )
+            }
+        )
+    )
 }

@@ -1,6 +1,5 @@
 package zio.web.http
 
-import java.nio.charset.StandardCharsets
 import zio._
 
 /**
@@ -60,56 +59,6 @@ object HttpMiddleware {
         val response = response0
       }
   }
-
-  def basicAuth[R, E](authenticate: Option[(String, String)] => ZIO[R, E, Unit]): HttpMiddleware[R, E] =
-    HttpMiddleware(
-      ZIO.succeed(
-        Middleware(
-          request(HttpRequest.Header("Authorization")).stateless { header =>
-            if (header.startsWith("Basic")) {
-              val data = header.drop("Basic ".length).trim
-
-              // TODO: base64 decode data
-              val decoded = new String(java.util.Base64.getDecoder().decode(data), StandardCharsets.UTF_8)
-
-              val split = decoded.split(":")
-
-              if (split.length == 2) {
-                val username = split(0)
-                val password = split(1)
-
-                authenticate(Some(username -> password))
-              } else authenticate(None)
-            } else authenticate(None)
-          },
-          Response.none
-        )
-      )
-    )
-
-  def rateLimiter(n: Int): HttpMiddleware[Any, None.type] =
-    HttpMiddleware(
-      Ref
-        .make[Int](0)
-        .flatMap(
-          ref =>
-            ZIO.succeed {
-              Middleware(
-                Request(
-                  HttpRequest.Succeed,
-                  (_: Unit) =>
-                    ref.modify { old =>
-                      if (old < n) (ZIO.succeed(true), n + 1) else (ZIO.fail(false -> None), n)
-                    }.flatten
-                ),
-                Response(
-                  HttpResponse.Succeed,
-                  (flag: Boolean, _: Unit) => ref.update(_ - 1).when(flag).as(Patch.empty)
-                )
-              )
-            }
-        )
-    )
 
   /**
    * HTTP middleware that does nothing.
